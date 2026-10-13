@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samjhao</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --card: #ffffff; --ink: #12151c; --muted: #6b7280; --line: #e4e7ec;
+    --accent: #3b4cca; --accent-ink: #ffffff;
+    --amber: #a85d00; --amber-bg: #fff6e5; --red: #b42318; --red-bg: #fef0ee;
+    --skeleton-a: #eceff3; --skeleton-b: #f6f7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1116; --card: #161a22; --ink: #eef0f4; --muted: #99a1af; --line: #272d38;
+      --accent: #7c8bff; --accent-ink: #0e1116;
+      --amber: #f2b45a; --amber-bg: #2a2114; --red: #ff8a7a; --red-bg: #2b1815;
+      --skeleton-a: #1e232d; --skeleton-b: #272d38;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Bengali", "Noto Sans Tamil", "Noto Sans Telugu", sans-serif;
+    line-height: 1.6; min-height: 100vh;
+  }
+  .stage { max-width: 560px; margin: 0 auto; padding: 20px 20px 80px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+  /* Top bar with language dropdown centered */
+  .topbar { width: 100%; display: flex; justify-content: center; }
+  .lang { position: relative; }
+  .lang-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer;
+    font: inherit; font-size: .92rem; color: var(--ink); background: var(--card);
+    border: 1px solid var(--line); border-radius: 999px; transition: border-color .15s;
+  }
+  .lang-btn:hover:not(:disabled), .lang-btn[aria-expanded="true"] { border-color: var(--accent); }
+  .lang-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .lang-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .lang-btn .chev { width: 14px; height: 14px; transition: transform .15s; }
+  .lang-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .lang-list {
+    position: absolute; inset-inline-end: 0; top: calc(100% + 8px); z-index: 10; margin: 0; padding: 6px;
+    list-style: none; width: 230px; max-height: 340px; overflow-y: auto; text-align: start;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    animation: pop .14s ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .lang-list li {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 9px 12px; border-radius: 9px; cursor: pointer;
+  }
+  .lang-list li small { color: var(--muted); font-size: .8rem; }
+  .lang-list li.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .lang-list li[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+
+  h1 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-weight: 600; font-size: 3rem; letter-spacing: -0.03em; margin: 28px 0 0; }
+  .tagline { margin: 10px 0 0; color: var(--muted); font-size: 1.05rem; max-width: 38ch; }
+
+  .card { width: 100%; margin-top: 32px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+
+  .drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 180px; border: 1.5px dashed var(--line); border-radius: 12px; cursor: pointer;
+    color: var(--muted); padding: 20px; transition: border-color .15s, background-color .15s;
+  }
+  .drop:hover, .drop:focus-visible, .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .drop strong { color: var(--ink); font-weight: 600; }
+  .drop svg { width: 30px; height: 30px; stroke: var(--muted); fill: none; stroke-width: 1.5; }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .drop .hint { font-size: .85rem; }
+
+  .preview { position: relative; border-radius: 12px; overflow: hidden; background: var(--skeleton-a); }
+  .preview img { display: block; width: 100%; max-height: 300px; object-fit: contain; }
+  .preview.scanning::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 56px;
+    background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 38%, transparent), transparent);
+    border-bottom: 2px solid var(--accent); animation: scan 2.2s ease-in-out infinite;
+  }
+  .preview.scanning img { opacity: .78; }
+  @keyframes scan { 0% { transform: translateY(-56px); } 100% { transform: translateY(300px); } }
+
+  .change { margin-top: 10px; background: none; border: 0; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; text-decoration: underline; }
+  .change:hover { color: var(--ink); }
+
+  .controls { margin-top: 16px; display: flex; }
+  button.go {
+    flex: 1; padding: 13px 16px; border: 0; border-radius: 10px; cursor: pointer;
+    font: inherit; font-weight: 600; background: var(--accent); color: var(--accent-ink);
+    transition: transform .1s, opacity .15s;
+  }
+  button.go:hover:not(:disabled) { transform: translateY(-1px); }
+  button.go:disabled { opacity: .4; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .privacy { margin: 14px 0 0; color: var(--muted); font-size: .85rem; }
+
+  .progress { margin-top: 18px; text-align: start; }
+  .progress-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .stage-text { font-weight: 600; }
+  .elapsed { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .9rem; white-space: nowrap; direction: ltr; }
+  .bar { margin-top: 10px; height: 4px; border-radius: 4px; background: var(--skeleton-a); overflow: hidden; direction: ltr; }
+  .bar::before { content: ""; display: block; height: 100%; width: 35%; border-radius: 4px; background: var(--accent); animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+  .skeleton { margin-top: 18px; display: grid; gap: 10px; }
+  .skeleton i { display: block; height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+  .skeleton i:nth-child(1) { width: 92%; } .skeleton i:nth-child(2) { width: 78%; }
+  .skeleton i:nth-child(3) { width: 85%; } .skeleton i:nth-child(4) { width: 55%; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .result { width: 100%; margin-top: 24px; text-align: start; }
+  .doc-type { color: var(--muted); font-size: .95rem; text-align: center; }
+  .summary { font-family: Georgia, "Iowan Old Style", serif; font-size: 1.4rem; line-height: 1.5; margin: 8px 0; text-align: center; min-height: 2.9em; }
+  .caret::after { content: "▍"; color: var(--accent); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .block { margin-top: 14px; padding: 16px 18px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+  .block h2 { margin: 0 0 8px; font-size: 1rem; }
+  .block ul { margin: 0; padding-inline-start: 20px; }
+  .block li { margin: 5px 0; }
+  .block.deadlines { background: var(--amber-bg); border-color: transparent; }
+  .block.deadlines h2 { color: var(--amber); }
+  .block.warnings { background: var(--red-bg); border-color: transparent; }
+  .block.warnings h2 { color: var(--red); }
+  .reveal { opacity: 0; transform: translateY(8px); animation: reveal .45s ease forwards; }
+  @keyframes reveal { to { opacity: 1; transform: none; } }
+
+  .row { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .ghost { padding: 10px 16px; border-radius: 10px; cursor: pointer; font: inherit; font-weight: 600; background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .ghost:hover { border-color: var(--accent); }
+  .ghost.on { border-color: var(--accent); color: var(--accent); }
+  .disclaimer { margin-top: 18px; color: var(--muted); font-size: .8rem; text-align: center; }
+  .error { margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: var(--red-bg); color: var(--red); text-align: start; }
+
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::after, *::before { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+  @media (max-width: 480px) { h1 { font-size: 2.4rem; } }
+</style>
+</head>
+<body>
+<main class="stage">
+
+  <div class="topbar">
+    <div class="lang" id="lang">
+      <button class="lang-btn" id="langBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="langList" aria-label="Language">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>
+        <span id="langCur">English</span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <ul class="lang-list" id="langList" role="listbox" tabindex="-1" hidden></ul>
+    </div>
+  </div>
+
+  <h1>Samjhao</h1>
+  <p class="tagline" data-i18n="tagline"></p>
+
+  <section class="card">
+    <label class="drop" id="drop" tabindex="0">
+      <input type="file" id="file" accept="image/*">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span><strong data-i18n="choose"></strong> <span data-i18n="orDrop"></span></span>
+      <span class="hint" data-i18n="pasteHint"></span>
+    </label>
+
+    <div id="previewWrap" hidden>
+      <div class="preview" id="preview"><img id="previewImg" alt=""></div>
+      <button class="change" id="change" type="button" data-i18n="change"></button>
+    </div>
+
+    <div class="controls">
+      <button class="go" id="go" type="button" disabled data-i18n="go"></button>
+    </div>
+
+    <div class="progress" id="progress" hidden aria-live="polite">
+      <div class="progress-top">
+        <span class="stage-text" id="stageText"></span>
+        <span class="elapsed" id="elapsed">0:00</span>
+      </div>
+      <div class="bar"></div>
+      <div class="skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <button class="change" id="cancel" type="button" data-i18n="cancel"></button>
+    </div>
+
+    <div class="error" id="error" hidden role="alert"></div>
+    <p class="privacy" id="privacy" data-i18n="privacy"></p>
+  </section>
+
+  <section class="result" id="result" hidden></section>
+</main>
+
+<script>
+  /* ---------- languages and interface text ---------- */
+  const LANGS = [
+    { name: 'English',   native: 'English',    code: 'en', dir: 'ltr' },
+    { name: 'Hindi',     native: 'हिन्दी',       code: 'hi', dir: 'ltr' },
+    { name: 'Bengali',   native: 'বাংলা',       code: 'bn', dir: 'ltr' },
+    { name: 'Marathi',   native: 'मराठी',       code: 'mr', dir: 'ltr' },
+    { name: 'Telugu',    native: 'తెలుగు',      code: 'te', dir: 'ltr' },
+    { name: 'Tamil',     native: 'தமிழ்',       code: 'ta', dir: 'ltr' },
+    { name: 'Gujarati',  native: 'ગુજરાતી',     code: 'gu', dir: 'ltr' },
+    { name: 'Kannada',   native: 'ಕನ್ನಡ',       code: 'kn', dir: 'ltr' },
+    { name: 'Malayalam', native: 'മലയാളം',     code: 'ml', dir: 'ltr' },
+    { name: 'Punjabi',   native: 'ਪੰਜਾਬੀ',      code: 'pa', dir: 'ltr' },
+    { name: 'Urdu',      native: 'اردو',        code: 'ur', dir: 'rtl' }
+  ];
+
+  const I18N = {
+    en: {
+      tagline: 'Photograph a letter, bill or label. Understand it in your language.',
+      choose: 'Choose a photo', orDrop: 'or drop it here', pasteHint: 'You can also paste an image',
+      change: 'Choose a different photo', go: 'Explain this',
+      privacy: 'Runs on Gemma 4 on this computer. Your photo never goes online.',
+      st1: 'Reading the photo', st2: 'Finding dates, amounts and deadlines', st3: 'Writing the explanation', st4: 'Still working. Large photos take longer',
+      cancel: 'Cancel', todo: 'What you need to do', deadlines: 'Deadlines', careful: 'Be careful',
+      again: 'Explain another',
+      disclaimer: 'AI explanation, not legal or medical advice. Check important details with the sender or a professional.',
+      err: 'Could not explain this document.', alt: 'Your document', langLabel: 'Language'
+    },
+    hi: {
+      tagline: 'किसी पत्र, बिल या लेबल की फ़ोटो लें। उसे अपनी भाषा में समझें।',
+      choose: 'फ़ोटो चुनें', orDrop: 'या यहाँ छोड़ें', pasteHint: 'आप कोई तस्वीर पेस्ट भी कर सकते हैं',
+      change: 'दूसरी फ़ोटो चुनें', go: 'समझाओ',
+      privacy: 'यह इसी कंप्यूटर पर Gemma 4 से चलता है। आपकी फ़ोटो कभी ऑनलाइन नहीं जाती।',
+      st1: 'फ़ोटो पढ़ रहे हैं', st2: 'तारीख़ें, रकम और अंतिम तिथियाँ खोज रहे हैं', st3: 'समझाइश लिख रहे हैं', st4: 'अभी जारी है। बड़ी फ़ोटो में ज़्यादा समय लगता है',
+      cancel: 'रद्द करें', todo: 'आपको क्या करना है', deadlines: 'अंतिम तिथियाँ', careful: 'सावधान रहें',
+      again: 'दूसरा समझाएँ',
+      disclaimer: 'यह AI की व्याख्या है, कानूनी या चिकित्सीय सलाह नहीं। ज़रूरी बातें भेजने वाले या किसी विशेषज्ञ से जाँच लें।',
+      err: 'इस दस्तावेज़ को समझाया नहीं जा सका।', alt: 'आपका दस्तावेज़', langLabel: 'भाषा'
+    },
+    bn: {
+      tagline: 'চিঠি, বিল বা লেবেলের ছবি তুলুন। নিজের ভাষায় বুঝে নিন।',
+      choose: 'ছবি বেছে নিন', orDrop: 'বা এখানে ছেড়ে দিন', pasteHint: 'আপনি ছবি পেস্টও করতে পারেন',
+      change: 'অন্য ছবি বেছে নিন', go: 'বুঝিয়ে দিন',
+      privacy: 'এটি এই কম্পিউটারেই Gemma 4 দিয়ে চলে। আপনার ছবি কখনও অনলাইনে যায় না।',
+      st1: 'ছবি পড়া হচ্ছে', st2: 'তারিখ, টাকার অঙ্ক ও শেষ তারিখ খোঁজা হচ্ছে', st3: 'ব্যাখ্যা লেখা হচ্ছে', st4: 'এখনও চলছে। বড় ছবিতে বেশি সময় লাগে',
+      cancel: 'বাতিল', todo: 'আপনাকে কী করতে হবে', deadlines: 'শেষ তারিখ', careful: 'সতর্ক থাকুন',
+      again: 'আরেকটি বুঝিয়ে দিন',
+      disclaimer: 'এটি AI-এর ব্যাখ্যা, আইনি বা চিকিৎসা পরামর্শ নয়। গুরুত্বপূর্ণ বিষয় প্রেরকের কাছে বা বিশেষজ্ঞের কাছে যাচাই করুন।',
+      err: 'এই নথিটি বোঝানো যায়নি।', alt: 'আপনার নথি', langLabel: 'ভাষা'
+    },
+    mr: {
+      tagline: 'पत्र, बिल किंवा लेबलचा फोटो घ्या. तो तुमच्या भाषेत समजून घ्या.',
+      choose: 'फोटो निवडा', orDrop: 'किंवा इथे टाका', pasteHint: 'तुम्ही इमेज पेस्टही करू शकता',
+      change: 'दुसरा फोटो निवडा', go: 'समजवा',
+      privacy: 'हे याच संगणकावर Gemma 4 वर चालते. तुमचा फोटो कधीही ऑनलाइन जात नाही.',
+      st1: 'फोटो वाचत आहे', st2: 'तारखा, रक्कम आणि अंतिम मुदती शोधत आहे', st3: 'स्पष्टीकरण लिहीत आहे', st4: 'अजून सुरू आहे. मोठ्या फोटोला जास्त वेळ लागतो',
+      cancel: 'रद्द करा', todo: 'तुम्हाला काय करायचे आहे', deadlines: 'अंतिम मुदती', careful: 'काळजी घ्या',
+      again: 'आणखी एक समजवा',
+      disclaimer: 'हे AI चे स्पष्टीकरण आहे, कायदेशीर किंवा वैद्यकीय सल्ला नाही. महत्त्वाच्या गोष्टी पाठवणाऱ्याकडे किंवा तज्ज्ञांकडे तपासा.',
+      err: 'हा दस्तऐवज समजावता आला नाही.', alt: 'तुमचा दस्तऐवज', langLabel: 'भाषा'
+    },
+    te: {
+      tagline: 'ఉత్తరం, బిల్లు లేదా లేబుల్ ఫోటో తీయండి. మీ భాషలో అర్థం చేసుకోండి.',
+      choose: 'ఫోటో ఎంచుకోండి', orDrop: 'లేదా ఇక్కడ వదలండి', pasteHint: 'మీరు చిత్రాన్ని పేస్ట్ కూడా చేయవచ్చు',
+      change: 'వేరే ఫోటో ఎంచుకోండి', go: 'వివరించు',
+      privacy: 'ఇది ఈ కంప్యూటర్‌లోనే Gemma 4తో నడుస్తుంది. మీ ఫోటో ఎప్పుడూ ఆన్‌లైన్‌కు వెళ్లదు.',
+      st1: 'ఫోటో చదువుతోంది', st2: 'తేదీలు, మొత్తాలు, గడువులు వెతుకుతోంది', st3: 'వివరణ రాస్తోంది', st4: 'ఇంకా పని జరుగుతోంది. పెద్ద ఫోటోలకు ఎక్కువ సమయం పడుతుంది',
+      cancel: 'రద్దు చేయి', todo: 'మీరు ఏమి చేయాలి', deadlines: 'గడువులు', careful: 'జాగ్రత్త',
+      again: 'మరొకటి వివరించు',
+      disclaimer: 'ఇది AI వివరణ, చట్టపరమైన లేదా వైద్య సలహా కాదు. ముఖ్యమైన వివరాలను పంపినవారితో లేదా నిపుణుడితో సరిచూసుకోండి.',
+      err: 'ఈ పత్రాన్ని వివరించలేకపోయింది.', alt: 'మీ పత్రం', langLabel: 'భాష'
+    },
+    ta: {
+      tagline: 'கடிதம், பில் அல்லது லேபிளை புகைப்படம் எடுங்கள். உங்கள் மொழியில் புரிந்துகொள்ளுங்கள்.',
+      choose: 'புகைப்படத்தைத் தேர்ந்தெடுக்கவும்', orDrop: 'அல்லது இங்கே விடுங்கள்', pasteHint: 'படத்தை ஒட்டவும் செய்யலாம்',
+      change: 'வேறு புகைப்படத்தைத் தேர்ந்தெடுக்கவும்', go: 'விளக்கு',
+      privacy: 'இது இந்தக் கணினியிலேயே Gemma 4 மூலம் இயங்குகிறது. உங்கள் புகைப்படம் ஒருபோதும் இணையத்திற்குச் செல்லாது.',
+      st1: 'புகைப்படத்தைப் படிக்கிறது', st2: 'தேதிகள், தொகைகள், கடைசி நாட்களைத் தேடுகிறது', st3: 'விளக்கத்தை எழுதுகிறது', st4: 'இன்னும் நடக்கிறது. பெரிய புகைப்படங்களுக்கு அதிக நேரம் ஆகும்',
+      cancel: 'ரத்து செய்', todo: 'நீங்கள் என்ன செய்ய வேண்டும்', deadlines: 'கடைசி நாட்கள்', careful: 'எச்சரிக்கை',
+      again: 'மற்றொன்றை விளக்கு',
+      disclaimer: 'இது AI விளக்கம், சட்ட அல்லது மருத்துவ ஆலோசனை அல்ல. முக்கிய விவரங்களை அனுப்பியவரிடமோ நிபுணரிடமோ சரிபார்க்கவும்.',
+      err: 'இந்த ஆவணத்தை விளக்க முடியவில்லை.', alt: 'உங்கள் ஆவணம்', langLabel: 'மொழி'
+    },
+    gu: {
+      tagline: 'પત્ર, બિલ કે લેબલનો ફોટો લો. તમારી ભાષામાં સમજો.',
+      choose: 'ફોટો પસંદ કરો', orDrop: 'અથવા અહીં મૂકો', pasteHint: 'તમે ઇમેજ પેસ્ટ પણ કરી શકો છો',
+      change: 'બીજો ફોટો પસંદ કરો', go: 'સમજાવો',
+      privacy: 'આ આ જ કમ્પ્યૂટર પર Gemma 4 થી ચાલે છે. તમારો ફોટો ક્યારેય ઓનલાઇન જતો નથી.',
+      st1: 'ફોટો વાંચી રહ્યું છે', st2: 'તારીખો, રકમ અને છેલ્લી તારીખો શોધી રહ્યું છે', st3: 'સમજૂતી લખી રહ્યું છે', st4: 'હજી ચાલુ છે. મોટા ફોટામાં વધુ સમય લાગે છે',
+      cancel: 'રદ કરો', todo: 'તમારે શું કરવાનું છે', deadlines: 'છેલ્લી તારીખો', careful: 'સાવચેત રહો',
+      again: 'બીજું સમજાવો',
+      disclaimer: 'આ AI ની સમજૂતી છે, કાનૂની કે તબીબી સલાહ નથી. મહત્વની વિગતો મોકલનાર પાસે અથવા નિષ્ણાત પાસે તપાસો.',
+      err: 'આ દસ્તાવેજ સમજાવી શકાયો નહીં.', alt: 'તમારો દસ્તાવેજ', langLabel: 'ભાષા'
+    },
+    kn: {
+      tagline: 'ಪತ್ರ, ಬಿಲ್ ಅಥವಾ ಲೇಬಲ್‌ನ ಫೋಟೋ ತೆಗೆಯಿರಿ. ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿ ಅರ್ಥಮಾಡಿಕೊಳ್ಳಿ.',
+      choose: 'ಫೋಟೋ ಆಯ್ಕೆಮಾಡಿ', orDrop: 'ಅಥವಾ ಇಲ್ಲಿ ಬಿಡಿ', pasteHint: 'ನೀವು ಚಿತ್ರವನ್ನು ಪೇಸ್ಟ್ ಕೂಡ ಮಾಡಬಹುದು',
+      change: 'ಬೇರೆ ಫೋಟೋ ಆಯ್ಕೆಮಾಡಿ', go: 'ವಿವರಿಸಿ',
+      privacy: 'ಇದು ಈ ಕಂಪ್ಯೂಟರ್‌ನಲ್ಲೇ Gemma 4 ಮೂಲಕ ಓಡುತ್ತದೆ. ನಿಮ್ಮ ಫೋಟೋ ಎಂದಿಗೂ ಆನ್‌ಲೈನ್‌ಗೆ ಹೋಗುವುದಿಲ್ಲ.',
+      st1: 'ಫೋಟೋ ಓದುತ್ತಿದೆ', st2: 'ದಿನಾಂಕಗಳು, ಮೊತ್ತಗಳು ಮತ್ತು ಗಡುವುಗಳನ್ನು ಹುಡುಕುತ್ತಿದೆ', st3: 'ವಿವರಣೆ ಬರೆಯುತ್ತಿದೆ', st4: 'ಇನ್ನೂ ನಡೆಯುತ್ತಿದೆ. ದೊಡ್ಡ ಫೋಟೋಗಳಿಗೆ ಹೆಚ್ಚು ಸಮಯ ಬೇಕು',
+      cancel: 'ರದ್ದುಮಾಡಿ', todo: 'ನೀವು ಏನು ಮಾಡಬೇಕು', deadlines: 'ಗಡುವುಗಳು', careful: 'ಎಚ್ಚರಿಕೆ',
+      again: 'ಇನ್ನೊಂದನ್ನು ವಿವರಿಸಿ',
+      disclaimer: 'ಇದು AI ವಿವರಣೆ, ಕಾನೂನು ಅಥವಾ ವೈದ್ಯಕೀಯ ಸಲಹೆಯಲ್ಲ. ಮುಖ್ಯ ವಿವರಗಳನ್ನು ಕಳುಹಿಸಿದವರಿಂದ ಅಥವಾ ತಜ್ಞರಿಂದ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.',
+      err: 'ಈ ದಾಖಲೆಯನ್ನು ವಿವರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.', alt: 'ನಿಮ್ಮ ದಾಖಲೆ', langLabel: 'ಭಾಷೆ'
+    },
+    ml: {
+      tagline: 'കത്തിന്റെയോ ബില്ലിന്റെയോ ലേബലിന്റെയോ ഫോട്ടോ എടുക്കൂ. നിങ്ങളുടെ ഭാഷയിൽ മനസ്സിലാക്കൂ.',
+      choose: 'ഫോട്ടോ തിരഞ്ഞെടുക്കൂ', orDrop: 'അല്ലെങ്കിൽ ഇവിടെ ഇടൂ', pasteHint: 'ചിത്രം പേസ്റ്റ് ചെയ്യുകയും ചെയ്യാം',
+      change: 'മറ്റൊരു ഫോട്ടോ തിരഞ്ഞെടുക്കൂ', go: 'വിശദീകരിക്കൂ',
+      privacy: 'ഇത് ഈ കമ്പ്യൂട്ടറിൽത്തന്നെ Gemma 4 ഉപയോഗിച്ച് പ്രവർത്തിക്കുന്നു. നിങ്ങളുടെ ഫോട്ടോ ഒരിക്കലും ഓൺലൈനിൽ പോകില്ല.',
+      st1: 'ഫോട്ടോ വായിക്കുന്നു', st2: 'തീയതികളും തുകകളും അവസാന തീയതികളും കണ്ടെത്തുന്നു', st3: 'വിശദീകരണം എഴുതുന്നു', st4: 'ഇപ്പോഴും തുടരുന്നു. വലിയ ഫോട്ടോകൾക്ക് കൂടുതൽ സമയം വേണം',
+      cancel: 'റദ്ദാക്കുക', todo: 'നിങ്ങൾ എന്താണ് ചെയ്യേണ്ടത്', deadlines: 'അവസാന തീയതികൾ', careful: 'ശ്രദ്ധിക്കുക',
+      again: 'മറ്റൊന്ന് വിശദീകരിക്കൂ',
+      disclaimer: 'ഇത് AI വിശദീകരണമാണ്, നിയമപരമോ വൈദ്യപരമോ ആയ ഉപദേശമല്ല. പ്രധാന കാര്യങ്ങൾ അയച്ചയാളോടോ വിദഗ്ധനോടോ ഉറപ്പുവരുത്തുക.',
+      err: 'ഈ രേഖ വിശദീകരിക്കാൻ കഴിഞ്ഞില്ല.', alt: 'നിങ്ങളുടെ രേഖ', langLabel: 'ഭാഷ'
+    },
+    pa: {
+      tagline: 'ਚਿੱਠੀ, ਬਿੱਲ ਜਾਂ ਲੇਬਲ ਦੀ ਫ਼ੋਟੋ ਖਿੱਚੋ। ਆਪਣੀ ਭਾਸ਼ਾ ਵਿੱਚ ਸਮਝੋ।',
+      choose: 'ਫ਼ੋਟੋ ਚੁਣੋ', orDrop: 'ਜਾਂ ਇੱਥੇ ਛੱਡੋ', pasteHint: 'ਤੁਸੀਂ ਤਸਵੀਰ ਪੇਸਟ ਵੀ ਕਰ ਸਕਦੇ ਹੋ',
+      change: 'ਹੋਰ ਫ਼ੋਟੋ ਚੁਣੋ', go: 'ਸਮਝਾਓ',
+      privacy: 'ਇਹ ਇਸੇ ਕੰਪਿਊਟਰ ਉੱਤੇ Gemma 4 ਨਾਲ ਚੱਲਦਾ ਹੈ। ਤੁਹਾਡੀ ਫ਼ੋਟੋ ਕਦੇ ਆਨਲਾਈਨ ਨਹੀਂ ਜਾਂਦੀ।',
+      st1: 'ਫ਼ੋਟੋ ਪੜ੍ਹ ਰਿਹਾ ਹੈ', st2: 'ਤਾਰੀਖ਼ਾਂ, ਰਕਮਾਂ සහ ਆਖ਼ਰੀ ਮਿਤੀਆਂ ਲੱਭ ਰਿਹਾ ਹੈ', st3: 'ਵਿਆਖਿਆ ਲਿਖ ਰਿਹਾ ਹੈ', st4: 'ਅਜੇ ਜਾਰੀ ਹੈ। ਵੱਡੀਆਂ ਫ਼ੋਟੋਆਂ ਨੂੰ ਵੱਧ ਸਮਾਂ ਲੱਗਦਾ ਹੈ',
+      cancel: 'ਰੱਦ ਕਰੋ', todo: 'ਤੁਹਾਨੂੰ ਕੀ ਕਰਨਾ ਹੈ', deadlines: 'ਆਖ਼ਰੀ ਮਿਤੀਆਂ', careful: 'ਧਿਆਨ ਰੱਖੋ',
+      again: 'ਹੋਰ ਸਮਝਾਓ',
+      disclaimer: 'ਇਹ AI ਦੀ ਵਿਆਖਿਆ ਹੈ, ਕਾਨੂੰਨੀ ਜਾਂ ਡਾਕਟਰੀ ਸਲਾਹ ਨਹੀਂ। ਜ਼ਰੂਰੀ ਗੱਲਾਂ ਭੇਜਣ ਵਾਲੇ ਜਾਂ ਕਿਸੇ ਮਾਹਿਰ ਤੋਂ ਜਾਂਚ ਲਓ።',
+      err: 'ਇਹ ਦਸਤਾਵੇਜ਼ ਸਮਝਾਇਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।', alt: 'ਤੁਹਾਡਾ ਦਸਤਾਵੇਜ਼', langLabel: 'ਭਾਸ਼ਾ'
+    },
+    ur: {
+      tagline: 'خط، بل یا لیبل کی تصویر لیں۔ اسے اپنی زبان میں سمجھیں۔',
+      choose: 'تصویر منتخب کریں', orDrop: 'یا یہاں چھوڑیں', pasteHint: 'آپ تصویر پیسٹ بھی کر سکتے ہیں',
+      change: 'دوسری تصویر منتخب کریں', go: 'سمجھائیں',
+      privacy: 'یہ اسی کمپیوٹر پر Gemma 4 سے چلتا ہے۔ آپ کی تصویر کبھی آن لائن نہیں جاتی۔',
+      st1: 'تصویر پڑھ رہا ہے', st2: 'تاریخیں، رقم اور آخری تاریخیں تلاش کر رہا ہے', st3: 'وضاحت لکھ رہا ہے', st4: 'ابھی جاری ہے۔ بڑی تصویروں میں زیادہ وقت لگتا ہے',
+      cancel: 'منسوخ کریں', todo: 'آپ کو کیا کرنا ہے', deadlines: 'آخری تاریخیں', careful: 'احتیاط کریں',
+      again: 'ایک اور سمجھائیں',
+      disclaimer: 'یہ AI کی وضاحت ہے، قانونی یا طبی مشورہ نہیں۔ اہم باتیں بھیجنے والے یا کسی ماہر سے تصدیق کر لیں۔',
+      err: 'یہ دستاویز سمجھائی نہیں جا سکی۔', alt: 'آپ کی دستاویز', langLabel: 'زبان'
+    }
+  };
+
+  /* ---------- elements and state ---------- */
+  const $ = id => document.getElementById(id);
+  const fileInput = $('file'), drop = $('drop'), previewWrap = $('previewWrap');
+  const preview = $('preview'), previewImg = $('previewImg');
+  const goBtn = $('go'), progress = $('progress');
+  const stageText = $('stageText'), elapsedEl = $('elapsed'), errorBox = $('error');
+  const resultEl = $('result'), privacy = $('privacy');
+  const langBtn = $('langBtn'), langList = $('langList'), langCur = $('langCur');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let lang = LANGS[0];          // language currently selected
+  let resultLang = LANGS[0];    // language of the explanation on screen
+  let currentFile = null, timer = null, typer = null, controller = null;
+  let loading = false;
+
+  const t = key => (I18N[lang.code] || I18N.en)[key] || I18N.en[key];
+
+  /* ---------- language dropdown ---------- */
+  LANGS.forEach((l, i) => {
+    const li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.id = 'opt-' + l.code;
+    li.dataset.index = i;
+    const main = document.createElement('span'); main.textContent = l.native; main.lang = l.code;
+    li.appendChild(main);
+    if (l.native !== l.name) {
+      const sub = document.createElement('small'); sub.textContent = l.name; li.appendChild(sub);
+    }
+    li.addEventListener('click', () => { choose(i); });
+    li.addEventListener('mousemove', () => setActive(i));
+    langList.appendChild(li);
+  });
+
+  let activeIdx = 0;
+  function setActive(i) {
+    activeIdx = i;
+    [...langList.children].forEach((li, n) => li.classList.toggle('active', n === i));
+    langList.setAttribute('aria-activedescendant', langList.children[i].id);
+    langList.children[i].scrollIntoView({ block: 'nearest' });
+  }
+  function openList() {
+    if (langBtn.disabled) return;
+    langList.hidden = false; langBtn.setAttribute('aria-expanded', 'true');
+    setActive(LANGS.indexOf(lang)); langList.focus();
+  }
+  function closeList(refocus) {
+    langList.hidden = true; langBtn.setAttribute('aria-expanded', 'false');
+    if (refocus) langBtn.focus();
+  }
+  function choose(i) { closeList(true); setLanguage(LANGS[i]); }
+
+  langBtn.addEventListener('click', () => langList.hidden ? openList() : closeList(true));
+  langBtn.addEventListener('keydown', e => { if (e.key === 'ArrowDown') { e.preventDefault(); openList(); } });
+  langList.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(activeIdx); }
+    else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); closeList(true); }
+  });
+  document.addEventListener('click', e => { if (!$('lang').contains(e.target)) closeList(false); });
+
+  /* ---------- applying a language to the whole page ---------- */
+  function setLanguage(l) {
+    const changed = l !== lang;
+    lang = l;
+    try { localStorage.setItem('samjhao-lang', l.code); } catch (e) {}
+    document.documentElement.lang = l.code;
+    document.documentElement.dir = l.dir;
+    langCur.textContent = l.native;
+    langBtn.setAttribute('aria-label', t('langLabel'));
+    document.querySelectorAll('[data-i18n]').forEach(n => { n.textContent = t(n.dataset.i18n); });
+    previewImg.alt = t('alt');
+    [...langList.children].forEach((li, n) => li.setAttribute('aria-selected', LANGS[n] === l ? 'true' : 'false'));
+    if (!progress.hidden) stageText.textContent = stageFor(elapsedSeconds());
+
+    if (changed && !loading && currentFile && !resultEl.hidden && resultLang !== l) goBtn.click();
+  }
+
+  /* ---------- choosing a photo ---------- */
+  function setFile(f) {
+    if (!f || !f.type.startsWith('image/')) return;
+    currentFile = f;
+    previewImg.src = URL.createObjectURL(f);
+    drop.hidden = true; previewWrap.hidden = false;
+    goBtn.disabled = false; resultEl.hidden = true; errorBox.hidden = true;
+  }
+  function clearFile() {
+    currentFile = null; fileInput.value = '';
+    previewWrap.hidden = true; drop.hidden = false;
+    goBtn.disabled = true; resultEl.hidden = true; errorBox.hidden = true;
+  }
+  fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+  $('change').addEventListener('click', clearFile);
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (!drop.hidden) drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  document.addEventListener('drop', e => setFile(e.dataTransfer.files[0]));
+  document.addEventListener('paste', e => {
+    const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+    if (item) setFile(item.getAsFile());
+  });
+
+  /* ---------- live loading ---------- */
+  let t0 = 0;
+  const elapsedSeconds = () => Math.floor((Date.now() - t0) / 1000);
+  function stageFor(s) { return s >= 45 ? t('st4') : s >= 16 ? t('st3') : s >= 7 ? t('st2') : t('st1'); }
+
+  function startLoading() {
+    loading = true; t0 = Date.now();
+    goBtn.disabled = true; langBtn.disabled = true; closeList(false);
+    errorBox.hidden = true; resultEl.hidden = true; privacy.hidden = true;
+    progress.hidden = false; preview.classList.add('scanning');
+    const tick = () => {
+      const s = elapsedSeconds();
+      elapsedEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      const text = stageFor(s);
+      if (stageText.textContent !== text) stageText.textContent = text;
+    };
+    tick(); timer = setInterval(tick, 250);
+  }
+  function stopLoading() {
+    loading = false; clearInterval(timer);
+    progress.hidden = true; preview.classList.remove('scanning');
+    goBtn.disabled = !currentFile; langBtn.disabled = false; privacy.hidden = false;
+  }
+
+  goBtn.addEventListener('click', async () => {
+    if (!currentFile || loading) return;
+    controller = new AbortController();
+    const requested = lang;
+    startLoading();
+    const form = new FormData();
+    form.append('file', currentFile);
+    form.append('language', requested.name);
+    try {
+      const res = await fetch('/explain', { method: 'POST', body: form, signal: controller.signal });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || '');
+      stopLoading();
+      resultLang = requested;
+      render(data);
+    } catch (e) {
+      stopLoading();
+      if (e.name !== 'AbortError') {
+        errorBox.textContent = t('err') + ' ' + (e.message || '');
+        errorBox.hidden = false;
+      }
+    }
+  });
+  $('cancel').addEventListener('click', () => controller && controller.abort());
+
+  /* ---------- result ---------- */
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function block(cls, title, items) {
+    if (!items || !items.length) return null;
+    const b = el('div', 'block ' + cls);
+    b.appendChild(el('h2', null, title));
+    const ul = el('ul');
+    items.forEach(i => ul.appendChild(el('li', null, i)));
+    b.appendChild(ul);
+    return b;
+  }
+  function typeText(node, text, done) {
+    clearInterval(typer);
+    if (reduceMotion) { node.textContent = text; done(); return; }
+    const words = text.split(/\s+/); let i = 0;
+    node.classList.add('caret'); node.textContent = '';
+    typer = setInterval(() => {
+      node.textContent = words.slice(0, ++i).join(' ');
+      if (i >= words.length) { clearInterval(typer); node.classList.remove('caret'); done(); }
+    }, 40);
+  }
+
+  function render(d) {
+    const summary = el('p', 'summary');
+    const rest = [
+      block('todo', t('todo'), d.what_you_must_do),
+      block('deadlines', t('deadlines'), d.deadlines),
+      block('warnings', t('careful'), d.warnings)
+    ].filter(Boolean);
+
+    const again = el('button', 'ghost', t('again'));
+    again.type = 'button';
+    again.addEventListener('click', () => { clearFile(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    const row = el('div', 'row'); row.append(again);
+    const note = el('p', 'disclaimer', t('disclaimer'));
+
+    resultEl.replaceChildren(el('div', 'doc-type', d.document_type || ''), summary);
+    resultEl.hidden = false;
+    resultEl.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+
+    typeText(summary, d.summary || '', () => {
+      [...rest, row, note].forEach((n, i) => {
+        n.classList.add('reveal'); n.style.animationDelay = (i * 140) + 'ms';
+        resultEl.appendChild(n);
+      });
+    });
+  }
+
+  /* ---------- start ---------- */
+  let saved = null;
+  try { saved = localStorage.getItem('samjhao-lang'); } catch (e) {}
+  setLanguage(LANGS.find(l => l.code === saved) || LANGS[0]);
+</script>
+</body>
+</html>
