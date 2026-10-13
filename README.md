@@ -98,7 +98,6 @@ The page loads no external scripts, fonts or images, so it works fully offline.
 
 * AI can misread blurry or angled photos and can make mistakes. Use clear, well-lit, flat photos.
 * Quality varies by language. Hindi is usually strongest, and smaller models are weaker in less common languages.
-* Read-aloud uses your browser's built-in voices. Some Indian-language voices must be installed on the device first, so the button may stay silent for a language without one.
 * Not tested with handwriting or heavily stamped documents.
 
 ## Disclaimer
