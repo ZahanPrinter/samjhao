@@ -21,7 +21,6 @@ Online translators and AI chatbots would help, but these documents contain names
    * **what you need to do**,
    * **deadlines** (highlighted),
    * **things to be careful about** (penalties, costs, risks),
-   * a **Read aloud** button.
 
 Everything runs on your machine. The photo is never sent to the internet.
 
